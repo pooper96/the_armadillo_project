@@ -1,0 +1,228 @@
+#:kivy 2.3.0
+#:import dp kivy.metrics.dp
+#:import sp kivy.metrics.sp
+
+<HomeScreen>:
+    name: "home"
+    BoxLayout:
+        orientation: "vertical"
+        padding: dp(12)
+        spacing: dp(8)
+
+        Label:
+            id: selected_label
+            text: "Selected: None"
+            font_size: sp(16)
+            size_hint_y: None
+            height: dp(28)
+            halign: "left"
+            text_size: self.size
+
+        BoxLayout:
+            size_hint_y: None
+            height: dp(48)
+            spacing: dp(8)
+            Button:
+                id: feed_btn
+                text: "Feed"
+                size_hint_y: None
+                height: dp(48)
+                on_release: root.on_feed()
+            Button:
+                id: pet_btn
+                text: "Pet"
+                size_hint_y: None
+                height: dp(48)
+                on_release: root.on_pet()
+
+        Label:
+            id: inventory_label
+            text: "Food: 0 • Toys: 0"
+            font_size: sp(15)
+            size_hint_y: None
+            height: dp(24)
+            halign: "left"
+            text_size: self.size
+
+        ScrollView:
+            do_scroll_x: False
+            GridLayout:
+                id: home_list
+                cols: 1
+                size_hint_y: None
+                height: self.minimum_height
+                spacing: dp(8)
+                padding: dp(2), dp(4)
+
+<HabitatsScreen>:
+    name: "habitats"
+    BoxLayout:
+        orientation: "vertical"
+        padding: dp(12)
+        spacing: dp(8)
+
+        GridLayout:
+            cols: 1
+            spacing: dp(8)
+            size_hint_y: None
+            height: self.minimum_height
+
+            BoxLayout:
+                id: hab_card_1
+                size_hint_y: None
+                height: dp(92)
+                padding: dp(8)
+                spacing: dp(6)
+                Label:
+                    text: "Habitat 1"
+                    size_hint_x: None
+                    width: dp(100)
+                    halign: "left"; text_size: self.size
+                Label:
+                    id: hab_cap_1
+                    text: "0/2"
+                    size_hint_x: None
+                    width: dp(60)
+                Label:
+                    id: hab_occ_1
+                    text: "-"
+                    halign: "left"; text_size: self.size
+                Button:
+                    text: "Upgrade"
+                    size_hint_x: None
+                    width: dp(96)
+                    on_release: root.on_upgrade(0)
+
+            BoxLayout:
+                id: hab_card_2
+                size_hint_y: None
+                height: dp(92)
+                padding: dp(8)
+                spacing: dp(6)
+                Label:
+                    text: "Habitat 2"
+                    size_hint_x: None
+                    width: dp(100)
+                    halign: "left"; text_size: self.size
+                Label:
+                    id: hab_cap_2
+                    text: "0/2"
+                    size_hint_x: None
+                    width: dp(60)
+                Label:
+                    id: hab_occ_2
+                    text: "-"
+                    halign: "left"; text_size: self.size
+                Button:
+                    text: "Upgrade"
+                    size_hint_x: None
+                    width: dp(96)
+                    on_release: root.on_upgrade(1)
+
+            BoxLayout:
+                id: hab_card_3
+                size_hint_y: None
+                height: dp(92)
+                padding: dp(8)
+                spacing: dp(6)
+                Label:
+                    text: "Habitat 3"
+                    size_hint_x: None
+                    width: dp(100)
+                    halign: "left"; text_size: self.size
+                Label:
+                    id: hab_cap_3
+                    text: "0/2"
+                    size_hint_x: None
+                    width: dp(60)
+                Label:
+                    id: hab_occ_3
+                    text: "-"
+                    halign: "left"; text_size: self.size
+                Button:
+                    text: "Upgrade"
+                    size_hint_x: None
+                    width: dp(96)
+                    on_release: root.on_upgrade(2)
+
+<BreedingScreen>:
+    name: "breeding"
+    BoxLayout:
+        orientation: "vertical"
+        padding: dp(12)
+        spacing: dp(8)
+
+        BoxLayout:
+            size_hint_y: None
+            height: dp(48)
+            spacing: dp(8)
+            Spinner:
+                id: dad_spinner
+                text: "Select Dad"
+                size_hint_x: 1
+            Spinner:
+                id: mom_spinner
+                text: "Select Mom"
+                size_hint_x: 1
+            Button:
+                text: "Start"
+                size_hint_x: None
+                width: dp(88)
+                on_release: root.on_start_breeding()
+
+        ScrollView:
+            do_scroll_x: False
+            GridLayout:
+                id: queue_box
+                cols: 1
+                size_hint_y: None
+                height: self.minimum_height
+                spacing: dp(6)
+
+<DexScreen>:
+    name: "dex"
+    BoxLayout:
+        orientation: "vertical"
+        padding: dp(12)
+        spacing: dp(8)
+
+        Label:
+            text: "Dex"
+            font_size: sp(18)
+            size_hint_y: None
+            height: dp(28)
+            halign: "left"
+            text_size: self.size
+
+        ScrollView:
+            do_scroll_x: False
+            MDGridLayout:
+                id: dex_grid
+                cols: 3
+                size_hint_y: None
+                height: self.minimum_height
+                spacing: dp(12)
+
+<ShopScreen>:
+    CommonScreenLayout:
+        MDLabel:
+            id: shop_inv
+            text: "Food: 0 • Toys: 0"
+            font_size: "16sp"
+            size_hint_y: None
+            height: dp(28)
+            halign: "left"
+        MDBoxLayout:
+            spacing: dp(12)
+            size_hint_y: None
+            height: dp(44)
+            MDRaisedButton:
+                text: "Buy Food (5)"
+                size_hint_y: None
+                height: dp(44)
+                on_release: root.on_buy_food()
+            MDRaisedButton:
+                text: "Buy Toy (8)"
+                size_hint_y: None
+                height: dp(44)
+                on_release: root.on_buy_toy()
