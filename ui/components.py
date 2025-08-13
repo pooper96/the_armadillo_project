@@ -77,6 +77,84 @@ def _toast(msg: str) -> None:
         Window.title = msg
         Clock.schedule_once(lambda *_: setattr(Window, "title", old), 1.0)
 
+# Maintain compatibility with main.py expecting show_toast
+def show_toast(text: str) -> None:
+    _toast(text)
+
+
+# ---------------------------------------------------------------------------
+# Top bar and screen manager with bottom nav (so main.py can import them)
+# ---------------------------------------------------------------------------
+class TopBar(MDBoxLayout):
+    """Simple top bar; coin text bound from main via ids or property."""
+    coin_text: str = "0"
+
+    def __init__(self, app=None, **kwargs):
+        super().__init__(**kwargs)
+        self.app = app
+        self.orientation = "horizontal"
+        self.padding = dp(8)
+        self.spacing = dp(8)
+        self.size_hint_y = None
+        self.height = dp(56)
+
+    def update_coin_label(self, coins: int) -> None:
+        self.coin_text = str(coins)
+
+
+class MDCompatibleScreenManager(MDScreenManager):
+    """
+    Wrapper that provides a bottom navigation (KivyMD if available,
+    TabbedPanel fallback otherwise). main.py sets up screens and calls
+    build_root_with_nav(topbar) to get the final root widget.
+    """
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self._root = None
+
+    def build_root_with_nav(self, topbar: TopBar):
+        from kivy.uix.boxlayout import BoxLayout
+
+        root = BoxLayout(orientation="vertical")
+        root.add_widget(topbar)
+        root.add_widget(self)
+
+        if HAS_MD and MDBottomNavigation:
+            bn = MDBottomNavigation()
+            # Create nav items (names must match screen names)
+            for item_id, text, icon in [
+                ("home", "Home", "home"),
+                ("habitats", "Habitats", "terrain"),
+                ("breeding", "Breeding", "egg"),
+                ("dex", "Dex", "view-grid"),
+                ("shop", "Shop", "cart"),
+            ]:
+                it = MDBottomNavigationItem(name=item_id, text=text, icon=icon)
+                # clicking a tab should switch the ScreenManager current
+                def _bind_switch(item_ref):
+                    def _switch(*_a):
+                        try:
+                            self.current = item_ref.name
+                        except Exception:
+                            pass
+                    return _switch
+                it.bind(on_tab_press=_bind_switch(it))
+                bn.add_widget(it)
+            root.add_widget(bn)
+        else:
+            # Simple Kivy fallback: tabbed footer
+            from kivy.uix.tabbedpanel import TabbedPanel, TabbedPanelHeader
+            tp = TabbedPanel(do_default_tab=False, tab_height=dp(44), tab_width=dp(120))
+            for nm, txt in [("home", "Home"), ("habitats", "Habitats"), ("breeding", "Breeding"),
+                            ("dex", "Dex"), ("shop", "Shop")]:
+                th = TabbedPanelHeader(text=txt)
+                th.bind(on_release=lambda *_a, n=nm: setattr(self, "current", n))
+                tp.add_widget(th)
+            root.add_widget(tp)
+
+        self._root = root
+        return root
+
 
 # ---------------------------------------------------------------------------
 # Drag shadow overlay
@@ -213,7 +291,6 @@ class ArmadilloCard(MDCard):
             # quick tap → select this card
             st = _state()
             if st:
-                # prefer `select()` if available; fall back to `select_armadillo()`
                 if hasattr(st, "select"):
                     st.select(self.armadillo_id)
                 elif hasattr(st, "select_armadillo"):
@@ -244,7 +321,6 @@ class HomeScreen(BaseScreen):
         self.ids.pet_btn.disabled = sel is None
 
         lst = self.ids.home_list
-        # simple rebuild for correctness; optimize later if needed
         lst.clear_widgets()
         for d in getattr(st, "armadillos", []):
             subtitle = f"{d.sex} • {d.color} • Hunger {d.hunger}% • Happy {d.happiness}%"
@@ -273,7 +349,6 @@ class HabitatsScreen(BaseScreen):
     Expects ids: hab_card_1..3, hab_cap_1..3, hab_occ_1..3 (from KV).
     """
 
-    # ---- dropzone plumbing ----
     def _collect_dropzones(self) -> Dict[Widget, str]:
         """Map visible cards to their corresponding habitat *ids* (not indexes)."""
         st = _state()
@@ -293,7 +368,6 @@ class HabitatsScreen(BaseScreen):
             card.opacity = 0.95 if active else 1.0
         if active:
             for card in zones.keys():
-                # convert window coords to local
                 if card.collide_point(*card.to_widget(*pos)):
                     card.opacity = 1.0
                     break
@@ -312,7 +386,6 @@ class HabitatsScreen(BaseScreen):
             _toast("No habitat under drop")
             return False
 
-        # state API: move_selected_to_habitat(habitat_id: str) -> bool or (bool,msg)
         result = st.move_selected_to_habitat(target_hid)
         ok, msg = (
             result if isinstance(result, tuple) else (bool(result), "Moved" if result else "Cannot move")
@@ -322,7 +395,6 @@ class HabitatsScreen(BaseScreen):
             self.refresh()
         return ok
 
-    # ---- UI sync / actions ----
     def refresh(self) -> None:
         st = _state()
         if not st:
@@ -330,7 +402,6 @@ class HabitatsScreen(BaseScreen):
         habitats: List = getattr(st, "habitats", [])[:3]
 
         def name_lookup(aid: str) -> str:
-            # prefer get_by_id(); fallback to get_name_by_id() if you implemented it
             if hasattr(st, "get_by_id"):
                 obj = st.get_by_id(aid)
                 return getattr(obj, "name", aid) if obj else aid
@@ -355,7 +426,6 @@ class HabitatsScreen(BaseScreen):
                 occ_lbl.text = "Occupants: —"
 
     def on_upgrade(self, hid_idx: int) -> None:
-        """Upgrade the Nth (1-based) habitat card shown."""
         st = _state()
         if not st:
             _toast("State unavailable")
@@ -393,8 +463,6 @@ class BreedingScreen(BaseScreen):
         st = _state()
         if not st:
             return
-
-        # Populate spinners with adult M/F options as "Name (id)"
         try:
             adults = st.adults() or []
         except Exception:
@@ -408,7 +476,6 @@ class BreedingScreen(BaseScreen):
         if not moms:
             self.ids.mom_spinner.text = "Pick Female"
 
-        # Rebuild queue list: "Egg #### • XXs"
         box = self.ids.queue_box
         box.clear_widgets()
         for job in getattr(st, "breeding_queue", []):
@@ -429,7 +496,6 @@ class BreedingScreen(BaseScreen):
         if not dad_id or not mom_id or dad_id == mom_id:
             _toast("Pick a male and a female adult.")
             return
-        # start job (support either signature variant)
         try:
             job = st.start_breeding(dad_id, mom_id, duration_s=Economy.DEFAULT_INCUBATION_S)
         except TypeError:

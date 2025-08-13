@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+.dist-info/
+.env
+.venv
+venv/
+
+# Kivy / logs
+.kivy/
+*.log
+
+# Build artifacts
+build/
+dist/
+bin/
+*.spec
+*.aab
+*.apk
+*.ipa
+
+# Buildozer / Android
+.buildozer/
+.gradle/
+.cxx/
+*.keystore
+
+# Xcode / iOS (if you experiment)
+*.xcworkspace/
+*.xcodeproj/
+DerivedData/
+
+# IDEs
+.idea/
+.vscode/
+
+# OS cruft
+.DS_Store
+Thumbs.db
+
+# Runtime data created locally
+.userdata/
