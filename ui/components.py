@@ -13,7 +13,7 @@ from kivy.uix.label import Label
 from kivy.uix.screenmanager import Screen, ScreenManager
 from kivy.uix.tabbedpanel import TabbedPanel
 from kivy.uix.widget import Widget
-
+from kivy.properties import ObjectProperty, StringProperty
 from services.economy import Economy
 
 # ---------------------------------------------------------------------------
@@ -87,7 +87,7 @@ def show_toast(text: str) -> None:
 # ---------------------------------------------------------------------------
 class TopBar(MDBoxLayout):
     """Simple top bar; coin text bound from main via ids or property."""
-    coin_text: str = "0"
+    coin_text = StringProperty("0")
 
     def __init__(self, app=None, **kwargs):
         super().__init__(**kwargs)
@@ -304,8 +304,11 @@ class ArmadilloCard(MDCard):
 # Screens
 # ---------------------------------------------------------------------------
 class BaseScreen(MDScreen):
-    def refresh(self) -> None:  # overridden by children
+    app = ObjectProperty(None)  # <-- add this line
+
+    def refresh(self) -> None:
         pass
+
 
 
 class HomeScreen(BaseScreen):

@@ -44,3 +44,31 @@ Thumbs.db
 
 # Runtime data created locally
 .userdata/
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual env
+.venv/
+env/
+venv/
+ENV/
+
+# IDE settings
+.idea/
+.vscode/
+
+# Logs
+*.log
+
+# Kivy build artifacts
+*.pyo
+*.pyd
+*.so
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
