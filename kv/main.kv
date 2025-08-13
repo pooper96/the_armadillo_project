@@ -1,228 +1,266 @@
-#:kivy 2.3.0
-#:import dp kivy.metrics.dp
-#:import sp kivy.metrics.sp
+#:kivy 2.3.1
 
 <HomeScreen>:
-    name: "home"
-    BoxLayout:
+    MDBoxLayout:
         orientation: "vertical"
         padding: dp(12)
-        spacing: dp(8)
+        spacing: dp(12)
 
-        Label:
+        MDLabel:
             id: selected_label
             text: "Selected: None"
-            font_size: sp(16)
             size_hint_y: None
             height: dp(28)
-            halign: "left"
-            text_size: self.size
 
-        BoxLayout:
-            size_hint_y: None
-            height: dp(48)
+        MDBoxLayout:
+            orientation: "horizontal"
             spacing: dp(8)
-            Button:
+            size_hint_y: None
+            height: dp(44)
+            MDRaisedButton:
                 id: feed_btn
                 text: "Feed"
-                size_hint_y: None
-                height: dp(48)
+                disabled: True
                 on_release: root.on_feed()
-            Button:
+            MDRaisedButton:
                 id: pet_btn
                 text: "Pet"
-                size_hint_y: None
-                height: dp(48)
+                disabled: True
                 on_release: root.on_pet()
 
-        Label:
+        MDLabel:
             id: inventory_label
             text: "Food: 0 • Toys: 0"
-            font_size: sp(15)
             size_hint_y: None
             height: dp(24)
-            halign: "left"
-            text_size: self.size
 
         ScrollView:
-            do_scroll_x: False
-            GridLayout:
+            MDBoxLayout:
                 id: home_list
-                cols: 1
+                orientation: "vertical"
                 size_hint_y: None
                 height: self.minimum_height
                 spacing: dp(8)
-                padding: dp(2), dp(4)
 
-<HabitatsScreen>:
-    name: "habitats"
-    BoxLayout:
+<HabitatCard@MDCard>:
+    orientation: "vertical"
+    padding: dp(8)
+    size_hint_y: None
+    height: dp(140)
+    radius: [12]
+    MDBoxLayout:
         orientation: "vertical"
-        padding: dp(12)
-        spacing: dp(8)
-
-        GridLayout:
-            cols: 1
-            spacing: dp(8)
+        spacing: dp(6)
+        MDLabel:
+            text: root.title if hasattr(root, "title") else ""
             size_hint_y: None
-            height: self.minimum_height
-
-            BoxLayout:
-                id: hab_card_1
-                size_hint_y: None
-                height: dp(92)
-                padding: dp(8)
-                spacing: dp(6)
-                Label:
-                    text: "Habitat 1"
-                    size_hint_x: None
-                    width: dp(100)
-                    halign: "left"; text_size: self.size
-                Label:
-                    id: hab_cap_1
-                    text: "0/2"
-                    size_hint_x: None
-                    width: dp(60)
-                Label:
-                    id: hab_occ_1
-                    text: "-"
-                    halign: "left"; text_size: self.size
-                Button:
-                    text: "Upgrade"
-                    size_hint_x: None
-                    width: dp(96)
-                    on_release: root.on_upgrade(0)
-
-            BoxLayout:
-                id: hab_card_2
-                size_hint_y: None
-                height: dp(92)
-                padding: dp(8)
-                spacing: dp(6)
-                Label:
-                    text: "Habitat 2"
-                    size_hint_x: None
-                    width: dp(100)
-                    halign: "left"; text_size: self.size
-                Label:
-                    id: hab_cap_2
-                    text: "0/2"
-                    size_hint_x: None
-                    width: dp(60)
-                Label:
-                    id: hab_occ_2
-                    text: "-"
-                    halign: "left"; text_size: self.size
-                Button:
-                    text: "Upgrade"
-                    size_hint_x: None
-                    width: dp(96)
-                    on_release: root.on_upgrade(1)
-
-            BoxLayout:
-                id: hab_card_3
-                size_hint_y: None
-                height: dp(92)
-                padding: dp(8)
-                spacing: dp(6)
-                Label:
-                    text: "Habitat 3"
-                    size_hint_x: None
-                    width: dp(100)
-                    halign: "left"; text_size: self.size
-                Label:
-                    id: hab_cap_3
-                    text: "0/2"
-                    size_hint_x: None
-                    width: dp(60)
-                Label:
-                    id: hab_occ_3
-                    text: "-"
-                    halign: "left"; text_size: self.size
-                Button:
-                    text: "Upgrade"
-                    size_hint_x: None
-                    width: dp(96)
-                    on_release: root.on_upgrade(2)
-
-<BreedingScreen>:
-    name: "breeding"
-    BoxLayout:
-        orientation: "vertical"
-        padding: dp(12)
-        spacing: dp(8)
-
-        BoxLayout:
+            height: dp(20)
+        MDLabel:
+            id: cap_label
+            text: "Lv 0 • Cap 0/0"
             size_hint_y: None
-            height: dp(48)
-            spacing: dp(8)
-            Spinner:
-                id: dad_spinner
-                text: "Select Dad"
-                size_hint_x: 1
-            Spinner:
-                id: mom_spinner
-                text: "Select Mom"
-                size_hint_x: 1
-            Button:
-                text: "Start"
-                size_hint_x: None
-                width: dp(88)
-                on_release: root.on_start_breeding()
-
-        ScrollView:
-            do_scroll_x: False
-            GridLayout:
-                id: queue_box
-                cols: 1
-                size_hint_y: None
-                height: self.minimum_height
-                spacing: dp(6)
-
-<DexScreen>:
-    name: "dex"
-    BoxLayout:
-        orientation: "vertical"
-        padding: dp(12)
-        spacing: dp(8)
-
-        Label:
-            text: "Dex"
-            font_size: sp(18)
+            height: dp(20)
+        MDLabel:
+            id: occ_label
+            text: "Occupants: —"
             size_hint_y: None
-            height: dp(28)
-            halign: "left"
+            height: dp(40)
             text_size: self.size
+            halign: "left"
+            valign: "top"
+        MDRaisedButton:
+            text: "Upgrade"
+            size_hint_y: None
+            height: dp(44)
+            on_release: root.callback() if hasattr(root, "callback") else None
+
+< HabitatsScreen>:
+    id: habitats_screen
+    MDBoxLayout:
+        orientation: "vertical"
+        padding: dp(12)
+        spacing: dp(12)
 
         ScrollView:
-            do_scroll_x: False
-            MDGridLayout:
-                id: dex_grid
-                cols: 3
+            MDBoxLayout:
+                orientation: "vertical"
                 size_hint_y: None
                 height: self.minimum_height
                 spacing: dp(12)
 
+                MDCard:
+                    id: hab_card_1
+                    orientation: "vertical"
+                    padding: dp(8)
+                    size_hint_y: None
+                    height: dp(140)
+                    radius: [12]
+                    MDLabel:
+                        text: "Habitat 1"
+                        size_hint_y: None
+                        height: dp(20)
+                    MDLabel:
+                        id: hab_cap_1
+                        text: "Lv 0 • Cap 0/0"
+                        size_hint_y: None
+                        height: dp(20)
+                    MDLabel:
+                        id: hab_occ_1
+                        text: "Occupants: —"
+                        size_hint_y: None
+                        height: dp(40)
+                        text_size: self.size
+                        halign: "left"
+                        valign: "top"
+                    MDRaisedButton:
+                        text: "Upgrade"
+                        size_hint_y: None
+                        height: dp(44)
+                        on_release: root.on_upgrade(1)
+
+                MDCard:
+                    id: hab_card_2
+                    orientation: "vertical"
+                    padding: dp(8)
+                    size_hint_y: None
+                    height: dp(140)
+                    radius: [12]
+                    MDLabel:
+                        text: "Habitat 2"
+                        size_hint_y: None
+                        height: dp(20)
+                    MDLabel:
+                        id: hab_cap_2
+                        text: "Lv 0 • Cap 0/0"
+                        size_hint_y: None
+                        height: dp(20)
+                    MDLabel:
+                        id: hab_occ_2
+                        text: "Occupants: —"
+                        size_hint_y: None
+                        height: dp(40)
+                        text_size: self.size
+                        halign: "left"
+                        valign: "top"
+                    MDRaisedButton:
+                        text: "Upgrade"
+                        size_hint_y: None
+                        height: dp(44)
+                        on_release: root.on_upgrade(2)
+
+                MDCard:
+                    id: hab_card_3
+                    orientation: "vertical"
+                    padding: dp(8)
+                    size_hint_y: None
+                    height: dp(140)
+                    radius: [12]
+                    MDLabel:
+                        text: "Habitat 3"
+                        size_hint_y: None
+                        height: dp(20)
+                    MDLabel:
+                        id: hab_cap_3
+                        text: "Lv 0 • Cap 0/0"
+                        size_hint_y: None
+                        height: dp(20)
+                    MDLabel:
+                        id: hab_occ_3
+                        text: "Occupants: —"
+                        size_hint_y: None
+                        height: dp(40)
+                        text_size: self.size
+                        halign: "left"
+                        valign: "top"
+                    MDRaisedButton:
+                        text: "Upgrade"
+                        size_hint_y: None
+                        height: dp(44)
+                        on_release: root.on_upgrade(3)
+
+<BreedingScreen>:
+    MDBoxLayout:
+        orientation: "vertical"
+        padding: dp(12)
+        spacing: dp(12)
+
+        MDLabel:
+            text: "Breeding"
+            size_hint_y: None
+            height: dp(28)
+
+        MDBoxLayout:
+            orientation: "horizontal"
+            spacing: dp(8)
+            size_hint_y: None
+            height: dp(44)
+            Spinner:
+                id: dad_spinner
+                text: "Pick Male"
+                size_hint_x: 0.5
+            Spinner:
+                id: mom_spinner
+                text: "Pick Female"
+                size_hint_x: 0.5
+
+        MDRaisedButton:
+            text: "Start"
+            size_hint_y: None
+            height: dp(44)
+            on_release: root.on_start_breeding()
+
+        MDLabel:
+            text: "Queue"
+            size_hint_y: None
+            height: dp(24)
+
+        ScrollView:
+            MDBoxLayout:
+                id: queue_box
+                orientation: "vertical"
+                size_hint_y: None
+                height: self.minimum_height
+                spacing: dp(8)
+
+<DexScreen>:
+    MDBoxLayout:
+        orientation: "vertical"
+        padding: dp(12)
+        spacing: dp(12)
+
+        MDLabel:
+            text: "Dex"
+            size_hint_y: None
+            height: dp(28)
+
+        ScrollView:
+            MDGridLayout:
+                id: dex_grid
+                cols: 3
+                spacing: dp(12)
+                size_hint_y: None
+                height: self.minimum_height
+
 <ShopScreen>:
-    CommonScreenLayout:
+    MDBoxLayout:
+        orientation: "vertical"
+        padding: dp(12)
+        spacing: dp(12)
+
         MDLabel:
             id: shop_inv
             text: "Food: 0 • Toys: 0"
-            font_size: "16sp"
             size_hint_y: None
-            height: dp(28)
-            halign: "left"
+            height: dp(24)
+
         MDBoxLayout:
-            spacing: dp(12)
+            orientation: "horizontal"
+            spacing: dp(8)
             size_hint_y: None
             height: dp(44)
             MDRaisedButton:
                 text: "Buy Food (5)"
-                size_hint_y: None
-                height: dp(44)
                 on_release: root.on_buy_food()
             MDRaisedButton:
                 text: "Buy Toy (8)"
-                size_hint_y: None
-                height: dp(44)
                 on_release: root.on_buy_toy()
