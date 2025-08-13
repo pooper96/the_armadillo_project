@@ -13,12 +13,18 @@ from kivy.uix.label import Label
 from kivy.uix.screenmanager import Screen, ScreenManager
 from kivy.uix.tabbedpanel import TabbedPanel
 from kivy.uix.widget import Widget
-from kivy.properties import ObjectProperty, StringProperty
+from kivy.uix.behaviors import ButtonBehavior
+from kivy.graphics import Color, Ellipse, Rectangle
+from kivy.properties import ObjectProperty, StringProperty, BooleanProperty
+
+from services.state import GameState
 from services.economy import Economy
+
 
 # ---------------------------------------------------------------------------
 # KivyMD detection + fallbacks
 # ---------------------------------------------------------------------------
+# --- KivyMD fallback handling ---
 HAS_MD = False
 try:
     from kivymd.uix.boxlayout import MDBoxLayout
@@ -27,17 +33,18 @@ try:
     from kivymd.uix.screen import MDScreen
     from kivymd.uix.screenmanager import MDScreenManager
     from kivymd.uix.bottomnavigation import MDBottomNavigation, MDBottomNavigationItem
-    from kivymd.uix.label import MDLabel as _MDLabel
-    from kivymd.toast import toast as _md_toast
+    from kivymd.uix.label import MDLabel  # <-- add this
     HAS_MD = True
-except Exception:
-    # Fallbacks so the app still runs without KivyMD installed
-    MDBoxLayout = BoxLayout          # type: ignore
-    MDCard = BoxLayout               # type: ignore
-    MDScreen = Screen                # type: ignore
-    MDScreenManager = ScreenManager  # type: ignore
-    MDBottomNavigation = TabbedPanel # type: ignore
-    MDBottomNavigationItem = BoxLayout  # type: ignore
+except ImportError:
+    MDBoxLayout = BoxLayout
+    MDCard = BoxLayout
+    MDScreen = Screen
+    MDScreenManager = ScreenManager
+    Snackbar = None
+    MDBottomNavigation = TabbedPanel
+    MDBottomNavigationItem = BoxLayout
+    MDLabel = Label  # <-- fallback alias
+
 
     class Snackbar:  # type: ignore
         """Minimal shim so code that calls Snackbar(...).open() won't crash."""
@@ -172,15 +179,30 @@ class DragShadow(FloatLayout):
             md_bg_color=(0.18, 0.18, 0.18, 0.95) if HAS_MD else (0, 0, 0, 0),
         )
         self._card.size = (dp(160), dp(48))
-        self._label = MDLabel(
-            text=title,
-            halign="center",
-            valign="middle",
-            size_hint=(1, 1),
-            theme_text_color="Custom" if HAS_MD else "Primary",
-            text_color=(1, 1, 1, 1) if HAS_MD else (1, 1, 1, 1),
-            font_size="15sp",
-        )
+
+        # Create the label safely for MD/non-MD cases
+        if HAS_MD:
+            lbl = MDLabel(
+                text=title,
+                halign="center",
+                valign="middle",
+                size_hint=(1, 1),
+                theme_text_color="Custom",
+                text_color=(1, 1, 1, 1),
+                font_size="15sp",
+            )
+        else:
+            lbl = Label(
+                text=title,
+                halign="center",
+                valign="middle",
+                size_hint=(1, 1),
+                font_size="15sp",
+            )
+            # ensure halign/valign apply by binding text_size
+            lbl.bind(size=lambda inst, val: setattr(inst, "text_size", val))
+
+        self._label = lbl
         self._card.add_widget(self._label)
         self.add_widget(self._card)
 
@@ -188,45 +210,223 @@ class DragShadow(FloatLayout):
         x, y = pos
         self._card.pos = (x - self._card.width / 2, y - self._card.height / 2)
 
-
 # ---------------------------------------------------------------------------
 # ArmadilloCard (tap to select, long-press to drag)
 # ---------------------------------------------------------------------------
-class ArmadilloCard(MDCard):
+class ArmadilloCard(ButtonBehavior, MDCard):
     """
-    Tap to select; long-press (~0.35s) to start drag to a habitat.
-    Drag shows a floating shadow, highlights habitats while hovering,
-    and drops into the card under the pointer on release.
+    Tap to select; long-press (~0.35s) starts drag to a habitat.
+    Shows a left avatar (colored circle) + name + subtitle.
+    Selection adds a subtle outline.
     """
 
-    def __init__(self, armadillo_id: str, name: str, subtitle: str = "", **kwargs) -> None:
+    def __init__(self, armadillo_id: str, name: str, subtitle: str = "", color_name: str = "Brown", **kwargs) -> None:
         super().__init__(**kwargs)
         self.armadillo_id = armadillo_id
         self.armadillo_name = name
+        self._color_name = color_name
+
+
         # visuals
         self.radius = [12]
         self.padding = dp(10)
         self.size_hint_y = None
         self.height = dp(96)
         if hasattr(self, "md_bg_color"):
-            self.md_bg_color = (0.16, 0.16, 0.16, 1)  # KivyMD
-        # content
-        row = MDBoxLayout(orientation="vertical", spacing=dp(2))
-        row.add_widget(MDLabel(text=name, halign="left", font_size="15sp"))
+            self.md_bg_color = (0.16, 0.16, 0.16, 1)
+
+        # selection outline
+        with self.canvas.after:
+            Color(0, 0, 0, 0)  # off by default
+            self._sel_color = self.canvas.after.children[0]  # Color instruction handle
+            Rectangle(pos=self.pos, size=self.size)
+            self._sel_rect = self.canvas.after.children[0]
+        self.bind(pos=self._update_outline, size=self._update_outline)
+
+        # content: avatar + text
+        row = MDBoxLayout(orientation="horizontal", spacing=dp(10))
+        avatar = Widget(size_hint=(None, None), size=(dp(48), dp(48)))
+        with avatar.canvas:
+            r, g, b, a = self._color_rgba(self._color_name)
+            Color(r, g, b, a)
+            Ellipse(pos=avatar.pos, size=avatar.size)
+        avatar.bind(pos=lambda *_: self._refresh_avatar(avatar), size=lambda *_: self._refresh_avatar(avatar))
+        row.add_widget(avatar)
+
+        col = MDBoxLayout(orientation="vertical", spacing=dp(2))
+        col.add_widget(MDLabel(text=name, halign="left", font_size="15sp"))
         if subtitle:
-            row.add_widget(
-                MDLabel(
+            if HAS_MD:
+                sub = MDLabel(
                     text=subtitle,
                     halign="left",
                     font_size="12sp",
-                    theme_text_color="Secondary" if HAS_MD else "Primary",
+                    theme_text_color="Secondary",
                 )
-            )
+            else:
+                sub = Label(text=subtitle, halign="left", font_size="12sp")
+                sub.bind(size=lambda inst, val: setattr(inst, "text_size", val))
+            col.add_widget(sub)
+
+        row.add_widget(col)
         self.add_widget(row)
+
         # drag state
         self._lp_ev = None
         self._dragging = False
         self._shadow: Optional[DragShadow] = None
+
+    # ----- avatar helpers -----
+    @staticmethod
+    def _color_rgba(name: str) -> Tuple[float, float, float, float]:
+        # simple palette; extend as you add traits
+        palette = {
+            "Brown": (0.49, 0.33, 0.25, 1),
+            "Albino": (0.95, 0.95, 0.95, 1),
+            "Blue": (0.25, 0.5, 0.95, 1),
+            "Green": (0.25, 0.75, 0.35, 1),
+            "Red":   (0.85, 0.25, 0.25, 1),
+            "Gold":  (0.95, 0.80, 0.20, 1),
+        }
+        return palette.get(name, (0.6, 0.6, 0.6, 1))
+
+    def _refresh_avatar(self, avatar: Widget) -> None:
+        # redraw the circle when the widget resizes/moves
+        avatar.canvas.clear()
+        with avatar.canvas:
+            r, g, b, a = self._color_rgba(self._color_name)
+            Color(r, g, b, a)
+            Ellipse(pos=avatar.pos, size=avatar.size)
+
+    def _update_outline(self, *_args) -> None:
+        self._sel_rect.pos = self.pos
+        self._sel_rect.size = self.size
+
+    # ----- app/screen helpers -----
+    @staticmethod
+    def _hab_screen() -> Optional["HabitatsScreen"]:
+        root = App.get_running_app().root
+        for w in root.walk():
+            if getattr(w, "id", None) == "habitats_screen":
+                return w  # type: ignore[return-value]
+        return None
+
+    def _start_drag(self, *_args) -> None:
+        st = _state()
+        if not st or getattr(st, "selected_id", None) != self.armadillo_id:
+            return
+        self._dragging = True
+        self._shadow = DragShadow(self.armadillo_name)
+        Window.add_widget(self._shadow)
+
+    def _cancel_longpress(self) -> None:
+        if self._lp_ev is not None:
+            self._lp_ev.cancel()
+            self._lp_ev = None
+
+    # ----- ButtonBehavior: tap selection -----
+    def on_release(self):
+        # select on tap and show outline
+        st = _state()
+        if st:
+            if hasattr(st, "select"):
+                st.select(self.armadillo_id)
+            elif hasattr(st, "select_armadillo"):
+                st.select_armadillo(self.armadillo_id)
+        # visual outline for feedback
+        self._sel_color.rgba = (0.2, 0.8, 0.7, 0.9)
+        Clock.schedule_once(lambda *_: setattr(self._sel_color, "rgba", (0, 0, 0, 0)), 0.25)
+        _toast(f"Selected {self.armadillo_name}")
+
+    # ----- touch handlers for long-press drag -----
+    def on_touch_down(self, touch) -> bool:
+        if self.collide_point(*touch.pos):
+            self._lp_ev = Clock.schedule_once(self._start_drag, 0.35)
+            touch.grab(self)
+            return True
+        return super().on_touch_down(touch)
+
+    def on_touch_move(self, touch) -> bool:
+        if touch.grab_current is self:
+            if self._dragging and self._shadow:
+                self._shadow.move_to(touch.pos)
+                hs = self._hab_screen()
+                if hs:
+                    hs.highlight_dropzones(touch.pos, True)
+            return True
+        return super().on_touch_move(touch)
+
+    def on_touch_up(self, touch) -> bool:
+        if touch.grab_current is self:
+            touch.ungrab(self)
+            was_dragging = self._dragging
+            self._cancel_longpress()
+            hs = self._hab_screen()
+            if was_dragging:
+                if hs:
+                    hs.try_drop(touch.pos)
+                    hs.highlight_dropzones(touch.pos, False)
+                if self._shadow:
+                    Window.remove_widget(self._shadow)
+                self._shadow = None
+                self._dragging = False
+                return True
+        return super().on_touch_up(touch)
+
+    # ---- Touch handling ----
+    def on_touch_down(self, touch):
+        if self.collide_point(*touch.pos):
+            self._press_time = time.time()
+            # Long-press to start drag if this card is already selected
+            Clock.schedule_once(lambda *_: self._maybe_start_drag(touch), 0.35)
+        return super().on_touch_down(touch)
+
+    def on_touch_move(self, touch):
+        if self._drag_shadow:
+            # follow pointer
+            self._drag_shadow.pos = (touch.x - self._drag_shadow.width / 2,
+                                     touch.y - self._drag_shadow.height / 2)
+            # highlight drop zones if available
+            try:
+                GameState.instance().app.root.ids.habitats.highlight_dropzones(touch.pos, True)  # type: ignore[attr-defined]
+            except Exception:
+                pass
+        return super().on_touch_move(touch)
+
+    def on_touch_up(self, touch):
+        # Finish drag if active
+        if self._drag_shadow:
+            try:
+                app = GameState.instance().app
+                app.root.ids.habitats.highlight_dropzones(touch.pos, False)  # type: ignore[attr-defined]
+                app.root.ids.habitats.try_drop(touch.pos)  # type: ignore[attr-defined]
+            except Exception:
+                pass
+            Window.remove_widget(self._drag_shadow)
+            self._drag_shadow = None
+        else:
+            # Simple tap → select
+            if self.collide_point(*touch.pos):
+                GameState.instance().select(self.did)
+                show_toast(f"Selected: {self.name}")
+        self._press_time = None
+        return super().on_touch_up(touch)
+
+    # ---- Drag helpers ----
+    def _maybe_start_drag(self, touch):
+        if self._press_time is None:  # touch was released
+            return
+        gs = GameState.instance()
+        sel = gs.get_selected()
+        if not sel or sel.id != self.did:
+            return  # only drag the currently selected card
+        if not self._drag_shadow:
+            self._drag_shadow = DragShadow(self.name)
+            Window.add_widget(self._drag_shadow)
+            # position immediately so there’s no visual jump
+            self._drag_shadow.pos = (touch.x - self._drag_shadow.width / 2,
+                                     touch.y - self._drag_shadow.height / 2)
+
 
     # ----- internal helpers -----
     @staticmethod
@@ -327,7 +527,7 @@ class HomeScreen(BaseScreen):
         lst.clear_widgets()
         for d in getattr(st, "armadillos", []):
             subtitle = f"{d.sex} • {d.color} • Hunger {d.hunger}% • Happy {d.happiness}%"
-            lst.add_widget(ArmadilloCard(d.id, d.name, subtitle))
+            lst.add_widget(ArmadilloCard(d.id, d.name, subtitle, getattr(d, "color", "Brown")))
 
     def on_feed(self) -> None:
         st = _state()
@@ -343,6 +543,41 @@ class HomeScreen(BaseScreen):
             return
         ok = getattr(st, "pet_selected", lambda: False)()
         _toast("Pet!" if ok else "Select an armadillo first.")
+        self.refresh()
+
+
+        # Roster
+        roster_len = len(gs.armadillos)
+        lst = self.ids.home_list
+
+        if roster_len != self._last_roster_len:
+            # Rebuild only if the number of cards changed
+            self._last_roster_len = roster_len
+            lst.clear_widgets()
+            for d in gs.armadillos:
+                subtitle = f"{d.sex} • {d.color} • Hunger {d.hunger}% • Happy {d.happiness}%"
+                card = ArmadilloCard(did=d.id, name=d.name, subtitle=subtitle)
+                lst.add_widget(card)
+        else:
+            # Update existing cards' subtitles in place
+            cards = list(getattr(lst, "children", []))
+            id_to_card = {getattr(c, "did", None): c for c in cards}
+            for d in gs.armadillos:
+                card = id_to_card.get(d.id)
+                if card:
+                    card.name = d.name
+                    card.subtitle = (
+                        f"{d.sex} • {d.color} • Hunger {d.hunger}% • Happy {d.happiness}%"
+                    )
+
+    def on_feed(self) -> None:
+        ok = GameState.instance().feed_selected()
+        show_toast("Fed!" if ok else "Need food. Buy in Shop.")
+        self.refresh()
+
+    def on_pet(self) -> None:
+        ok = GameState.instance().pet_selected()
+        show_toast("Pet!" if ok else "Select an armadillo first.")
         self.refresh()
 
 
