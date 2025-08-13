@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import base64
-import os
 import time
 from pathlib import Path
 from typing import List
@@ -17,7 +16,7 @@ HAS_MD = True
 try:
     from kivymd.app import MDApp as _BaseApp
     from kivymd.uix.dialog import MDDialog
-except Exception:  # noqa: BLE001
+except Exception:
     from kivy.app import App as _BaseApp  # type: ignore[assignment]
     MDDialog = None  # type: ignore[assignment]
     HAS_MD = False
@@ -35,7 +34,6 @@ from ui.components import (
     ShopScreen,
     TopBar,
 )
-
 
 ICON_B64 = (
     "iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAACXBIWXMAAAsSAAALEgHS3X78AAAA"
@@ -56,19 +54,59 @@ class ArmadilloApp(_BaseApp):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.state = GameState.instance()
-        self.state.app = self  # allow UI helpers to reach the app/root if needed
+        self.state.app = self
         self._autosave_trigger = Clock.create_trigger(self._save, 0.6)
         self.topbar: TopBar | None = None
         self.sm: MDCompatibleScreenManager | None = None
+
+    # ---------- Persistence helpers ----------
+    def _save_path(self) -> Path:
+        Path(self.user_data_dir).mkdir(parents=True, exist_ok=True)
+        return Path(self.user_data_dir) / "save.json"
+
+    def _save(self, *_):
+        """Autosave with flexible Persistence API support."""
+        path = str(self._save_path())
+        try:
+            Persistence.save(path, self.state.to_dict())  # (path, dict)
+        except TypeError:
+            try:
+                Persistence.save(path, self.state)  # (path, state)
+            except TypeError:
+                Persistence.save(self.state)  # (state)
+
+    def _load_or_seed(self) -> None:
+        """Load game state using flexible signatures; seed on first run."""
+        path = str(self._save_path())
+        data = None
+        try:
+            data = Persistence.load(path)  # (path)
+        except TypeError:
+            try:
+                data = Persistence.load(path, self.state)  # (path, state)
+            except TypeError:
+                try:
+                    data = Persistence.load(self.state)  # (state)
+                except TypeError:
+                    data = None
+
+        if isinstance(data, dict) and data:
+            self.state.from_dict(data)
+            self.state.meta["first_run"] = False
+        elif data:
+            self.state.meta["first_run"] = False  # loader mutated state in place
+        else:
+            self.state.seed_starters()
+            self.state.meta["first_run"] = True
+            self._save()
 
     # ---------- App lifecycle ----------
     def build(self):
         self._ensure_assets()
         self.icon = str(self._icon_path())
         if HAS_MD:
-            # type: ignore[attr-defined]
-            self.theme_cls.theme_style = "Dark"
-            self.theme_cls.primary_palette = "Teal"
+            self.theme_cls.theme_style = "Dark"  # type: ignore[attr-defined]
+            self.theme_cls.primary_palette = "Teal"  # type: ignore[attr-defined]
         self._load_kv_if_present()
         if platform not in ("android", "ios"):
             Window.size = (420, 780)
@@ -110,24 +148,7 @@ class ArmadilloApp(_BaseApp):
         if kv_path.exists():
             Builder.load_file(str(kv_path))
 
-    # ---------- Persistence ----------
-    def _save_path(self) -> Path:
-        Path(self.user_data_dir).mkdir(parents=True, exist_ok=True)
-        return Path(self.user_data_dir) / "save.json"
-
-    def _save(self, *_):
-        Persistence.save(str(self._save_path()), self.state.to_dict())
-
-    def _load_or_seed(self) -> None:
-        data = Persistence.load(str(self._save_path()))
-        if data:
-            self.state.from_dict(data)
-            self.state.meta["first_run"] = False
-        else:
-            self.state.seed_starters()
-            self.state.meta["first_run"] = True
-            self._save()
-
+    # ---------- Observer / autosave ----------
     def _wire_observer(self) -> None:
         def _obs():
             self._update_topbar()
@@ -148,15 +169,7 @@ class ArmadilloApp(_BaseApp):
 
     def _show_hatch_dialog(self, lines: List[str]) -> None:
         if HAS_MD and MDDialog:
-            dialog = MDDialog(
-                title="New Hatchlings!",
-                text="\n".join(lines),
-                buttons=[],
-            )
-            dialog.open()
-        else:
-            # Toast already shown; nothing else to do in fallback
-            pass
+            MDDialog(title="New Hatchlings!", text="\n".join(lines), buttons=[]).open()
 
     # ---------- UI updates ----------
     def _update_topbar(self) -> None:
